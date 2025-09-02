@@ -4,6 +4,23 @@ import { User } from "@/types";
 import { eventBus, EVENTS } from "./events";
 import { QueryClient } from "@tanstack/react-query";
 
+// Cookie utilities for middleware access
+const setCookie = (name: string, value: string, days: number = 7) => {
+  if (typeof document !== "undefined") {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = `${name}=${encodeURIComponent(
+      value
+    )};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+  }
+};
+
+const deleteCookie = (name: string) => {
+  if (typeof document !== "undefined") {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`;
+  }
+};
+
 // Cache invalidation utilities
 let globalQueryClient: QueryClient | null = null;
 
@@ -64,6 +81,7 @@ export const useAuthStore = create<AuthState>()(
       ) => {
         try {
           console.log("🔄 Attempting login for:", email, role);
+          console.log("🌐 Making fetch request to /api/login");
 
           const response = await fetch("/api/login", {
             method: "POST",
@@ -73,8 +91,15 @@ export const useAuthStore = create<AuthState>()(
             body: JSON.stringify({ email, password, role }),
           });
 
+          console.log(
+            "📡 Response received:",
+            response.status,
+            response.statusText
+          );
+
           if (!response.ok) {
             const errorData = await response.json();
+            console.error("❌ API Error:", errorData);
             throw new Error(errorData.error || "Login failed");
           }
 
@@ -82,11 +107,54 @@ export const useAuthStore = create<AuthState>()(
           console.log("✅ Login successful:", user);
 
           // Set the user in the auth state
-          set({
+          const authData = {
             user: user,
             token: `token_${user.email}`, // Simple token for demo
             isAuthenticated: true,
+            isInitialized: true, // Make sure initialization flag is set
+          };
+
+          set(authData);
+
+          // Set auth state in cookies for middleware access
+          const cookieData = JSON.stringify({
+            state: authData,
           });
+
+          console.log("🍪 Setting cookie with data:", cookieData);
+          setCookie("auth-state", cookieData);
+
+          // Force immediate cookie setting
+          if (typeof document !== "undefined") {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + 7 * 24 * 60 * 60 * 1000);
+            document.cookie = `auth-state=${encodeURIComponent(
+              cookieData
+            )};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+            console.log("🍪 Cookie set directly via document.cookie");
+          }
+
+          // Verify cookie was set
+          setTimeout(() => {
+            const testCookie = document.cookie
+              .split(";")
+              .find((cookie) => cookie.trim().startsWith("auth-state="));
+            console.log(
+              "🍪 Cookie verification:",
+              testCookie ? "Found" : "Not found"
+            );
+            if (testCookie) {
+              console.log(
+                "🍪 Cookie content preview:",
+                testCookie.substring(0, 50) + "..."
+              );
+            }
+          }, 50);
+
+          console.log("🍪 Cookie set:", cookieData);
+
+          // Small delay to ensure all state is synchronized
+          await new Promise((resolve) => setTimeout(resolve, 100));
         } catch (error) {
           console.error("❌ Login failed:", error);
           throw error;
@@ -121,11 +189,20 @@ export const useAuthStore = create<AuthState>()(
           console.log("✅ User registered successfully:", user);
 
           // Set the user in the auth state
-          set({
+          const authData = {
             user: user,
             token: `token_${user.email}`, // Simple token for demo
             isAuthenticated: true,
+            isInitialized: true, // Make sure initialization flag is set
+          };
+
+          set(authData);
+
+          // Set auth state in cookies for middleware access
+          const cookieData = JSON.stringify({
+            state: authData,
           });
+          setCookie("auth-state", cookieData);
 
           // If a doctor was registered, invalidate the doctors cache
           if (user.role === "DOCTOR") {
@@ -145,22 +222,85 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        // TODO: Implement logout logic if needed
+        // Clear auth state
         set({
           user: null,
           token: null,
           isAuthenticated: false,
+          isInitialized: true, // Keep initialized state
         });
+
+        // Remove auth state from cookies
+        deleteCookie("auth-state");
       },
 
       initializeAuth: async () => {
-        // TODO: Implement auth initialization logic if needed
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          isInitialized: true,
-        });
+        try {
+          console.log("🔄 Initializing auth...");
+
+          // Check if there's already authentication data in the store
+          const currentState = get();
+          if (currentState.user && currentState.isAuthenticated) {
+            console.log(
+              "✅ Auth already available in store:",
+              currentState.user
+            );
+            set({ isInitialized: true });
+            return;
+          }
+
+          // Check cookies for auth state
+          if (typeof document !== "undefined") {
+            const authCookie = document.cookie
+              .split(";")
+              .find((cookie) => cookie.trim().startsWith("auth-state="));
+
+            if (authCookie) {
+              try {
+                const cookieValue = authCookie.split("=")[1];
+                const decodedValue = decodeURIComponent(cookieValue);
+                const authData = JSON.parse(decodedValue);
+
+                if (
+                  authData.state &&
+                  authData.state.user &&
+                  authData.state.isAuthenticated
+                ) {
+                  console.log(
+                    "✅ Auth restored from cookie:",
+                    authData.state.user
+                  );
+                  set({
+                    user: authData.state.user,
+                    token: authData.state.token,
+                    isAuthenticated: authData.state.isAuthenticated,
+                    isInitialized: true,
+                  });
+                  return;
+                }
+              } catch (error) {
+                console.error("❌ Error parsing auth cookie:", error);
+              }
+            }
+          }
+
+          // No auth data found, set as unauthenticated
+          console.log("ℹ️ No auth data found, initializing as unauthenticated");
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isInitialized: true,
+          });
+        } catch (error) {
+          console.error("❌ Error during auth initialization:", error);
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isInitialized: true,
+          });
+        }
       },
     }),
     {
@@ -171,6 +311,31 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         // isInitialized is not persisted as it's a runtime state
       }),
+      onRehydrateStorage: () => (state) => {
+        console.log("🔄 Rehydrating auth storage:", state);
+
+        // Mark as initialized when store is rehydrated
+        if (state) {
+          state.isInitialized = true;
+        }
+
+        // Sync with cookies when store is rehydrated
+        if (state && state.isAuthenticated && state.user) {
+          console.log("✅ Rehydrated authenticated state, syncing cookie");
+          setCookie(
+            "auth-state",
+            JSON.stringify({
+              state: {
+                user: state.user,
+                token: state.token,
+                isAuthenticated: state.isAuthenticated,
+              },
+            })
+          );
+        } else {
+          console.log("ℹ️ Rehydrated unauthenticated state");
+        }
+      },
     }
   )
 );

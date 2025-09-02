@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { doctorAPI, appointmentAPI } from "./localData";
+import { appointmentAPI } from "./localData";
 import { DoctorFilters, AppointmentFilters } from "@/types";
 
 // Query keys
@@ -22,7 +22,20 @@ export const queryKeys = {
 export const useDoctors = (params?: DoctorFilters) => {
   return useQuery({
     queryKey: queryKeys.doctors(params),
-    queryFn: () => doctorAPI.getAll(params),
+    queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+      if (params?.search) queryParams.append("search", params.search);
+      if (params?.specialization)
+        queryParams.append("specialization", params.specialization);
+
+      const response = await fetch(`/api/doctors?${queryParams.toString()}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch doctors");
+      }
+      return response.json();
+    },
     staleTime: 0, // Always consider data stale to ensure fresh fetches after registration
     gcTime: 0, // Don't cache data - always fetch fresh
   });
