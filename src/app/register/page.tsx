@@ -10,6 +10,7 @@ import { AuthRedirect } from "@/components/auth-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSpecializations } from "@/lib/queries";
+import { useAuthStore } from "@/lib/store";
 import {
   PatientRegistrationFormData,
   DoctorRegistrationFormData,
@@ -73,11 +74,19 @@ export default function RegisterPage() {
 
       console.log("🔄 Calling registerUser with:", userData);
       await registerUser(userData);
+
+      // Get the registered user from auth store
+      const currentUser = useAuthStore.getState().user;
+
+      if (!currentUser?.id) {
+        throw new Error("User ID not found after registration");
+      }
+
       setSuccessInfo({ type: "patient", data: userData });
 
-      // Optional: Auto-redirect after a delay
+      // Auto-redirect to patient dashboard with user ID
       setTimeout(() => {
-        router.replace("/patient/dashboard");
+        router.replace(`/patient/${currentUser.id}/dashboard`);
       }, 3000);
     } catch (err) {
       console.error("❌ Patient registration error:", err);
@@ -101,12 +110,20 @@ export default function RegisterPage() {
 
       console.log("🔄 Calling registerUser with:", userData);
       await registerUser(userData);
+
+      // Get the registered user from auth store
+      const currentUser = useAuthStore.getState().user;
+
+      if (!currentUser?.id) {
+        throw new Error("User ID not found after registration");
+      }
+
       setSuccessInfo({ type: "doctor", data: userData });
 
-      // Don't auto-redirect for doctors so they can see the debug info
-      // setTimeout(() => {
-      //   router.push("/doctor/dashboard");
-      // }, 5000);
+      // Auto-redirect to doctor dashboard with user ID after showing success
+      setTimeout(() => {
+        router.replace(`/doctor/${currentUser.id}/dashboard`);
+      }, 5000);
     } catch (err) {
       console.error("❌ Doctor registration error:", err);
       setError(err instanceof Error ? err.message : "Registration failed");

@@ -7,33 +7,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const patientNavItems = [
-  {
-    href: "/patient/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    href: "/patient/appointments",
-    label: "My Appointments",
-    icon: Calendar,
-  },
-];
-
-const doctorNavItems = [
-  {
-    href: "/doctor/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-  },
-];
-
 export function Sidebar() {
   const { user } = useAuth();
   const { sidebarOpen, setSidebarOpen } = useAppStore();
   const pathname = usePathname();
 
   if (!user) return null;
+
+  // Create dynamic nav items based on current user
+  const patientNavItems = [
+    {
+      href: `/patient/${user.id}/dashboard`,
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/patient/appointments",
+      label: "My Appointments",
+      icon: Calendar,
+    },
+  ];
+
+  const doctorNavItems = [
+    {
+      href: `/doctor/${user.id}/dashboard`,
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+  ];
 
   const navItems = user.role === "DOCTOR" ? doctorNavItems : patientNavItems;
 

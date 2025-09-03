@@ -122,16 +122,28 @@ export const useAuthStore = create<AuthState>()(
           });
 
           console.log("🍪 Setting cookie with data:", cookieData);
-          setCookie("auth-state", cookieData);
 
-          // Force immediate cookie setting
+          // Use only the direct cookie setting method with more explicit settings
           if (typeof document !== "undefined") {
             const expires = new Date();
             expires.setTime(expires.getTime() + 7 * 24 * 60 * 60 * 1000);
-            document.cookie = `auth-state=${encodeURIComponent(
+
+            // Clear any existing auth cookies first
+            document.cookie =
+              "auth-state=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/";
+            document.cookie =
+              "auth-session=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/";
+
+            // Set the new cookie
+            const cookieString = `auth-state=${encodeURIComponent(
               cookieData
-            )};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
-            console.log("🍪 Cookie set directly via document.cookie");
+            )};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure=${
+              window.location.protocol === "https:"
+            }`;
+            document.cookie = cookieString;
+
+            console.log("🍪 Cookie string:", cookieString);
+            console.log("🍪 All cookies after setting:", document.cookie);
           }
 
           // Verify cookie was set

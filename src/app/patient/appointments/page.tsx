@@ -4,8 +4,11 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { AppointmentsList } from "@/components/patient/appointments-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/components/auth-provider";
 
 export default function PatientAppointments() {
+  const { user } = useAuth();
+
   return (
     <ProtectedRoute allowedRoles={["PATIENT"]}>
       <DashboardLayout>
@@ -24,7 +27,7 @@ export default function PatientAppointments() {
               <CardTitle>Your Appointments</CardTitle>
             </CardHeader>
             <CardContent>
-              <AppointmentsList />
+              <AppointmentsList patientId={user?.id} />
             </CardContent>
           </Card>
         </div>

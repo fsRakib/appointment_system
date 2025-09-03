@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, User, X, Filter } from "lucide-react";
+import { Calendar, User, X, Filter, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,11 @@ import { usePatientAppointments, useCancelAppointment } from "@/lib/queries";
 import { formatDate, getStatusColor } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
 
-export function AppointmentsList() {
+interface AppointmentsListProps {
+  patientId?: string;
+}
+
+export function AppointmentsList({ patientId }: AppointmentsListProps = {}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -21,6 +25,7 @@ export function AppointmentsList() {
     page: currentPage,
     limit: 10,
     status: statusFilter,
+    patientId,
   });
 
   const cancelAppointmentMutation = useCancelAppointment();
@@ -172,10 +177,13 @@ export function AppointmentsList() {
               Keep Appointment
             </Button>
             <Button
-              variant="danger"
+              variant="destructive"
               onClick={handleCancelConfirm}
-              loading={cancelAppointmentMutation.isPending}
+              disabled={cancelAppointmentMutation.isPending}
             >
+              {cancelAppointmentMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Cancel Appointment
             </Button>
           </div>

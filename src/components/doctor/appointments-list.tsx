@@ -1,13 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, User, Filter, Check, X } from "lucide-react";
+import { Calendar, User, Filter, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loading, EmptyState } from "@/components/ui/loading";
-import { Pagination } from "@/components/ui/pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Modal } from "@/components/ui/modal";
 import {
   useDoctorAppointments,
@@ -15,9 +28,15 @@ import {
 } from "@/lib/queries";
 import { formatDate, getStatusColor } from "@/lib/utils";
 
-export function DoctorAppointmentsList() {
+interface DoctorAppointmentsListProps {
+  doctorId?: string;
+}
+
+export function DoctorAppointmentsList({
+  doctorId,
+}: DoctorAppointmentsListProps = {}) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [dateFilter, setDateFilter] = useState("");
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
@@ -26,14 +45,15 @@ export function DoctorAppointmentsList() {
   const { data: appointmentsData, isLoading } = useDoctorAppointments({
     page: currentPage,
     limit: 10,
-    status: statusFilter,
+    status: statusFilter === "ALL" ? undefined : statusFilter,
     date: dateFilter,
+    doctorId,
   });
 
   const updateStatusMutation = useUpdateAppointmentStatus();
 
   const statusOptions = [
-    { value: "", label: "All Appointments" },
+    { value: "ALL", label: "All Appointments" },
     { value: "PENDING", label: "Pending" },
     { value: "COMPLETED", label: "Completed" },
     { value: "CANCELLED", label: "Cancelled" },
@@ -49,7 +69,7 @@ export function DoctorAppointmentsList() {
     if (selectedAppointment && newStatus) {
       try {
         await updateStatusMutation.mutateAsync({
-          appointmentId: selectedAppointment.id,
+          appointmentId: selectedAppointment._id,
           status: newStatus,
         });
         setShowStatusModal(false);
@@ -83,12 +103,18 @@ export function DoctorAppointmentsList() {
               />
             </div>
             <div className="md:w-64">
-              <Select
-                options={statusOptions}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                placeholder="Filter by status"
-              />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -104,7 +130,7 @@ export function DoctorAppointmentsList() {
         <>
           <div className="space-y-4">
             {appointments.map((appointment: any) => (
-              <Card key={appointment.id}>
+              <Card key={appointment._id || appointment.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -175,11 +201,56 @@ export function DoctorAppointmentsList() {
           </div>
 
           {/* Pagination */}
-          <Pagination
-            currentPage={currentPage}
-            totalPages={pagination.totalPages}
-            onPageChange={setCurrentPage}
-          />
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) setCurrentPage(currentPage - 1);
+                  }}
+                  className={
+                    currentPage <= 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+              </PaginationItem>
+
+              {Array.from(
+                { length: pagination.totalPages },
+                (_, i) => i + 1
+              ).map((page) => (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCurrentPage(page);
+                    }}
+                    isActive={currentPage === page}
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < pagination.totalPages)
+                      setCurrentPage(currentPage + 1);
+                  }}
+                  className={
+                    currentPage >= pagination.totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </>
       )}
 
@@ -206,10 +277,13 @@ export function DoctorAppointmentsList() {
               Cancel
             </Button>
             <Button
-              variant={newStatus === "COMPLETED" ? "primary" : "danger"}
+              variant={newStatus === "COMPLETED" ? "default" : "destructive"}
               onClick={handleStatusConfirm}
-              loading={updateStatusMutation.isPending}
+              disabled={updateStatusMutation.isPending}
             >
+              {updateStatusMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               {newStatus === "COMPLETED"
                 ? "Mark as Completed"
                 : "Cancel Appointment"}

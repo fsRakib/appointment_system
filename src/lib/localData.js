@@ -1,6 +1,58 @@
 // All user management is now handled via MongoDB and API routes.
 // Remove all local storage, file, and in-memory logic.
 
+// API utility function
+const callAPI = async (endpoint, options = {}) => {
+  console.log(`Making API call to: /api${endpoint}`, options);
+
+  // Get auth cookie manually to ensure it's sent
+  let authCookie = null;
+  if (typeof document !== "undefined") {
+    const cookies = document.cookie.split(";");
+    const authStateCookie = cookies.find((cookie) =>
+      cookie.trim().startsWith("auth-state=")
+    );
+    const authSessionCookie = cookies.find((cookie) =>
+      cookie.trim().startsWith("auth-session=")
+    );
+
+    authCookie = authStateCookie || authSessionCookie;
+    console.log("Found auth cookie:", !!authCookie);
+    console.log("All document cookies:", document.cookie);
+  }
+
+  const defaultOptions = {
+    credentials: "include", // Include cookies for authentication
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  };
+
+  const config = { ...defaultOptions, ...options };
+
+  try {
+    const response = await fetch(`/api${endpoint}`, config);
+
+    console.log(`API response status: ${response.status} for ${endpoint}`);
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: response.statusText }));
+      console.error(`API Error for ${endpoint}:`, errorData);
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`API call failed for ${endpoint}:`, error);
+    throw error;
+  }
+};
+
 // Doctor management
 export const doctorAPI = {
   getAll: async (params = {}) => {
@@ -118,7 +170,7 @@ export const appointmentAPI = {
       });
 
       console.log("✅ Appointment created successfully:", response);
-      return response;
+      return response.data;
     } catch (error) {
       console.error("❌ Failed to create appointment:", error);
       throw error;
@@ -127,8 +179,40 @@ export const appointmentAPI = {
 
   getPatientAppointments: async (params = {}) => {
     try {
-      await initializeData();
-      const currentUser = currentData.currentUser;
+      // Get current user from auth store (check both cookie names)
+      let authCookie = document.cookie
+        .split(";")
+        .find((cookie) => cookie.trim().startsWith("auth-state="));
+
+      if (!authCookie) {
+        authCookie = document.cookie
+          .split(";")
+          .find((cookie) => cookie.trim().startsWith("auth-session="));
+      }
+
+      if (!authCookie) {
+        throw new Error("User not authenticated");
+      }
+
+      const cookieValue = authCookie.split("=")[1];
+      const decodedValue = decodeURIComponent(cookieValue);
+      let currentUser;
+
+      try {
+        const authData = JSON.parse(decodedValue);
+
+        // Handle both cookie formats
+        if (authCookie.includes("auth-session=")) {
+          // Direct user data format
+          currentUser = authData.user;
+        } else {
+          // Nested state format
+          currentUser = authData.state?.user;
+        }
+      } catch (parseError) {
+        console.error("Error parsing auth cookie:", parseError);
+        throw new Error("Invalid authentication data");
+      }
 
       if (!currentUser) {
         throw new Error("User not authenticated");
@@ -154,49 +238,7 @@ export const appointmentAPI = {
       return response;
     } catch (error) {
       console.error("❌ Failed to fetch patient appointments:", error);
-      // Fallback to local data
-      await initializeData();
-      const currentUser = currentData.currentUser;
-
-      if (!currentUser) {
-        throw new Error("User not authenticated");
-      }
-
-      let userAppointments = currentData.appointments.filter(
-        (apt) => apt.patientId === currentUser.id
-      );
-
-      if (params.status) {
-        userAppointments = userAppointments.filter(
-          (apt) => apt.status === params.status
-        );
-      }
-
-      userAppointments = userAppointments.map((apt) => {
-        const doctor = currentData.users.find(
-          (user) => user.id === apt.doctorId
-        );
-        return { ...apt, doctor };
-      });
-
-      const page = params.page || 1;
-      const limit = params.limit || 10;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedAppointments = userAppointments.slice(
-        startIndex,
-        endIndex
-      );
-
-      return {
-        data: paginatedAppointments,
-        pagination: {
-          page,
-          limit,
-          total: userAppointments.length,
-          totalPages: Math.ceil(userAppointments.length / limit),
-        },
-      };
+      throw error;
     }
   },
 
@@ -204,25 +246,14 @@ export const appointmentAPI = {
     try {
       console.log("🔄 getDoctorAppointments called with params:", params);
 
-      await initializeData();
-
-      console.log(
-        "📊 After initializeData - currentData.currentUser:",
-        currentData.currentUser
-      );
-      console.log("📊 After initializeData - isInitialized:", isInitialized);
-
-      const currentUser = currentData.currentUser;
-
-      if (!currentUser) {
-        console.error(
-          "❌ No current user found in memory after initialization"
-        );
-        console.error("📊 Full currentData:", currentData);
-        throw new Error("User not authenticated");
+      // Use doctorId from params (required now)
+      if (!params.doctorId) {
+        throw new Error("Doctor ID is required");
       }
 
-      console.log("✅ Current user found:", currentUser);
+      const targetDoctorId = params.doctorId;
+
+      console.log("🎯 Target doctor ID:", targetDoctorId);
 
       let queryParams = "";
       if (params.status || params.date || params.page || params.limit) {
@@ -235,7 +266,7 @@ export const appointmentAPI = {
       }
 
       const response = await callAPI(
-        `/appointments/doctor/${currentUser.id}${queryParams}`,
+        `/appointments/doctor/${targetDoctorId}${queryParams}`,
         {
           method: "GET",
         }
@@ -245,57 +276,7 @@ export const appointmentAPI = {
       return response;
     } catch (error) {
       console.error("❌ Failed to fetch doctor appointments:", error);
-      // Fallback to local data
-      await initializeData();
-      const currentUser = currentData.currentUser;
-
-      if (!currentUser) {
-        throw new Error("User not authenticated");
-      }
-
-      let doctorAppointments = currentData.appointments.filter(
-        (apt) => apt.doctorId === currentUser.id
-      );
-
-      if (params.status) {
-        doctorAppointments = doctorAppointments.filter(
-          (apt) => apt.status === params.status
-        );
-      }
-
-      if (params.date) {
-        doctorAppointments = doctorAppointments.filter(
-          (apt) => apt.date === params.date
-        );
-      }
-
-      doctorAppointments = doctorAppointments.map((apt) => {
-        const patient = currentData.users.find(
-          (user) => user.id === apt.patientId
-        );
-        return { ...apt, patient };
-      });
-
-      doctorAppointments.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      const page = params.page || 1;
-      const limit = params.limit || 10;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedAppointments = doctorAppointments.slice(
-        startIndex,
-        endIndex
-      );
-
-      return {
-        data: paginatedAppointments,
-        pagination: {
-          page,
-          limit,
-          total: doctorAppointments.length,
-          totalPages: Math.ceil(doctorAppointments.length / limit),
-        },
-      };
+      throw error;
     }
   },
 
@@ -303,13 +284,13 @@ export const appointmentAPI = {
     console.log(`🔄 Updating appointment ${appointmentId} status to:`, status);
 
     try {
-      const response = await callAPI("/appointments/update-status", {
-        method: "POST",
-        body: JSON.stringify({ appointmentId, status }),
+      const response = await callAPI(`/appointments/${appointmentId}`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
       });
 
       console.log("✅ Appointment status updated successfully:", response);
-      return response;
+      return response.data;
     } catch (error) {
       console.error("❌ Failed to update appointment status:", error);
       throw error;
@@ -317,35 +298,35 @@ export const appointmentAPI = {
   },
 
   cancel: async (appointmentId) => {
-    return appointmentAPI.updateStatus(appointmentId, "CANCELLED");
+    console.log(`🔄 Cancelling appointment ${appointmentId}`);
+
+    try {
+      const response = await callAPI(`/appointments/${appointmentId}`, {
+        method: "DELETE",
+      });
+
+      console.log("✅ Appointment cancelled successfully:", response);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Failed to cancel appointment:", error);
+      throw error;
+    }
   },
 
   getById: async (appointmentId) => {
     console.log("Getting appointment by ID:", appointmentId);
 
-    await initializeData();
+    try {
+      const response = await callAPI(`/appointments/${appointmentId}`, {
+        method: "GET",
+      });
 
-    const appointment = currentData.appointments.find(
-      (app) => app.id === appointmentId
-    );
-
-    if (!appointment) {
-      throw new Error("Appointment not found");
+      console.log("✅ Appointment fetched successfully:", response);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Failed to fetch appointment:", error);
+      throw error;
     }
-
-    // Get associated doctor and patient details
-    const doctor = currentData.users.find(
-      (user) => user.id === appointment.doctorId && user.role === "DOCTOR"
-    );
-    const patient = currentData.users.find(
-      (user) => user.id === appointment.patientId && user.role === "PATIENT"
-    );
-
-    return {
-      ...appointment,
-      doctor: doctor || null,
-      patient: patient || null,
-    };
   },
 };
 

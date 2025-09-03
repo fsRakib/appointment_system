@@ -7,17 +7,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/auth-provider";
 import { Calendar, Users, Clock, CheckCircle } from "lucide-react";
 import { useDoctorAppointments } from "@/lib/queries";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
+  const params = useParams();
+  const router = useRouter();
+  const doctorId = params.id as string;
+
+  // Verify the doctor ID matches the logged-in user
+  useEffect(() => {
+    if (user && user.id !== doctorId) {
+      // Redirect to the correct doctor dashboard if IDs don't match
+      router.replace(`/doctor/${user.id}/dashboard`);
+    }
+  }, [user, doctorId, router]);
 
   // Get stats for different appointment statuses
-  const { data: allAppointments } = useDoctorAppointments({ limit: 1000 });
+  const { data: allAppointments } = useDoctorAppointments({
+    doctorId,
+    limit: 1000,
+  });
   const { data: pendingAppointments } = useDoctorAppointments({
+    doctorId,
     status: "PENDING",
     limit: 1000,
   });
   const { data: completedAppointments } = useDoctorAppointments({
+    doctorId,
     status: "COMPLETED",
     limit: 1000,
   });
@@ -40,6 +58,7 @@ export default function DoctorDashboard() {
             <p className="text-gray-600">
               Manage your appointments and patient interactions.
             </p>
+            <p className="text-sm text-gray-500 mt-1">Doctor ID: {doctorId}</p>
           </div>
 
           {/* Quick Stats */}
@@ -48,7 +67,7 @@ export default function DoctorDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
-                    <Calendar className="h-6 w-6 text-blue-600" />
+                    <Calendar className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Total Appointments</p>
@@ -64,7 +83,7 @@ export default function DoctorDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Clock className="h-6 w-6 text-yellow-600" />
+                    <Clock className="h-5 w-5 text-yellow-600" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Pending</p>
@@ -80,7 +99,7 @@ export default function DoctorDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-green-100 rounded-lg">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
+                    <CheckCircle className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Completed</p>
@@ -96,12 +115,12 @@ export default function DoctorDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-purple-100 rounded-lg">
-                    <Users className="h-6 w-6 text-purple-600" />
+                    <Users className="h-5 w-5 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Specialization</p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {user?.specialization}
+                    <p className="text-sm text-gray-600">This Month</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {stats.total}
                     </p>
                   </div>
                 </div>
@@ -109,13 +128,13 @@ export default function DoctorDashboard() {
             </Card>
           </div>
 
-          {/* Appointments Management */}
+          {/* Appointments List */}
           <Card>
             <CardHeader>
-              <CardTitle>Manage Appointments</CardTitle>
+              <CardTitle>Your Appointments</CardTitle>
             </CardHeader>
             <CardContent>
-              <DoctorAppointmentsList />
+              <DoctorAppointmentsList doctorId={doctorId} />
             </CardContent>
           </Card>
         </div>

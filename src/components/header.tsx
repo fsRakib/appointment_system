@@ -32,8 +32,8 @@ export function Header() {
           <Link
             href={
               user.role === "DOCTOR"
-                ? "/doctor/dashboard"
-                : "/patient/dashboard"
+                ? `/doctor/${user.id}/dashboard`
+                : `/patient/${user.id}/dashboard`
             }
           >
             <h1 className="text-xl font-bold text-gray-900">

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, User, CheckCircle } from "lucide-react";
+import { Calendar, User, CheckCircle, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +76,7 @@ export function BookAppointmentModal({
       const result = await createAppointmentMutation.mutateAsync({
         doctorId: data.doctorId,
         date: data.date,
+        patientId: user.id, // Include the patient ID
       });
       console.log("Appointment created successfully:", result);
       setIsSuccess(true);
@@ -156,13 +157,21 @@ export function BookAppointmentModal({
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <input type="hidden" {...register("doctorId")} value={doctor.id} />
 
-            <Input
-              label="Select Date"
-              type="date"
-              min={minDate}
-              {...register("date", { required: "Please select a date" })}
-              error={errors.date?.message}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Date
+              </label>
+              <Input
+                type="date"
+                min={minDate}
+                {...register("date", { required: "Please select a date" })}
+              />
+              {errors.date && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.date.message}
+                </p>
+              )}
+            </div>
 
             <div className="flex justify-end space-x-3 pt-4">
               <Button type="button" variant="outline" onClick={handleClose}>
@@ -170,10 +179,13 @@ export function BookAppointmentModal({
               </Button>
               <Button
                 type="submit"
-                loading={createAppointmentMutation.isPending}
                 disabled={createAppointmentMutation.isPending || !doctor?.id}
               >
-                <Calendar className="mr-2 h-4 w-4" />
+                {createAppointmentMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Calendar className="mr-2 h-4 w-4" />
+                )}
                 Book Appointment
               </Button>
             </div>

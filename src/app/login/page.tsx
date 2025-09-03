@@ -10,6 +10,7 @@ import { AuthRedirect } from "@/components/auth-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoginFormData, loginSchema } from "@/lib/schemas";
+import { useAuthStore } from "@/lib/store";
 import { Stethoscope, User, UserCheck } from "lucide-react";
 
 export default function LoginPage() {
@@ -46,10 +47,19 @@ export default function LoginPage() {
 
       await login(data.email, data.password, data.role);
 
-      // Use redirect URL if available, otherwise use default dashboard
+      // Get the updated user from auth store after login
+      const currentUser = useAuthStore.getState().user;
+
+      if (!currentUser?.id) {
+        throw new Error("User ID not found after login");
+      }
+
+      // Use redirect URL if available, otherwise use default dashboard with user ID
       const redirectPath =
         redirectUrl ||
-        (data.role === "DOCTOR" ? "/doctor/dashboard" : "/patient/dashboard");
+        (data.role === "DOCTOR"
+          ? `/doctor/${currentUser.id}/dashboard`
+          : `/patient/${currentUser.id}/dashboard`);
 
       console.log("✅ Login successful, redirecting to:", redirectPath);
 

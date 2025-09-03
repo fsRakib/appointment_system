@@ -22,7 +22,9 @@ export interface Appointment {
   doctorId: string;
   patientId: string;
   date: string;
-  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  notes?: string;
+  createdBy: string;
   createdAt: string;
   updatedAt?: string;
   doctor?: Doctor;
@@ -53,4 +55,6 @@ export interface AppointmentFilters {
   limit?: number;
   status?: string;
   date?: string;
+  doctorId?: string;
+  patientId?: string;
 }

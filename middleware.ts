@@ -48,10 +48,26 @@ export function middleware(request: NextRequest) {
 
   // If user is authenticated
   if (isAuthenticated && userRole) {
+    // Get user ID from auth data
+    let userId = null;
+    if (authStateCookie) {
+      try {
+        const authData = JSON.parse(authStateCookie.value);
+        userId = authData.state?.user?.id;
+      } catch (error) {
+        console.error("[MIDDLEWARE] Error getting user ID:", error);
+      }
+    }
+
     // Redirect authenticated users away from auth pages and root
     if (isAuthRoute || isRootRoute) {
-      const dashboardUrl =
-        userRole === "DOCTOR" ? "/doctor/dashboard" : "/patient/dashboard";
+      const dashboardUrl = userId
+        ? userRole === "DOCTOR"
+          ? `/doctor/${userId}/dashboard`
+          : `/patient/${userId}/dashboard`
+        : userRole === "DOCTOR"
+        ? "/doctor/dashboard"
+        : "/patient/dashboard"; // fallback
 
       if (process.env.NODE_ENV === "development") {
         console.log(
@@ -80,7 +96,10 @@ export function middleware(request: NextRequest) {
           `[MIDDLEWARE] Redirecting doctor from patient route ${pathname} to doctor dashboard`
         );
       }
-      return NextResponse.redirect(new URL("/doctor/dashboard", request.url));
+      const redirectUrl = userId
+        ? `/doctor/${userId}/dashboard`
+        : "/doctor/dashboard";
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
 
     if (isDoctorRoute && userRole !== "DOCTOR") {
@@ -90,7 +109,10 @@ export function middleware(request: NextRequest) {
           `[MIDDLEWARE] Redirecting patient from doctor route ${pathname} to patient dashboard`
         );
       }
-      return NextResponse.redirect(new URL("/patient/dashboard", request.url));
+      const redirectUrl = userId
+        ? `/patient/${userId}/dashboard`
+        : "/patient/dashboard";
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
   } else {
     // User is not authenticated
