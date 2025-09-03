@@ -78,17 +78,17 @@ export default function RegisterPage() {
 
       // Get the registered user from auth store
       const currentUser = useAuthStore.getState().user;
+      console.log("✅ Current user after registration:", currentUser);
 
       if (!currentUser?.id) {
         throw new Error("User ID not found after registration");
       }
 
-      setSuccessInfo({ type: "patient", data: userData });
-
-      // Auto-redirect to patient dashboard with user ID
-      setTimeout(() => {
-        router.replace(`/patient/${currentUser.id}/dashboard`);
-      }, 3000);
+      console.log(`🔄 Redirecting to patient dashboard: /patient/${currentUser.id}/dashboard`);
+      
+      // Immediate redirect to patient dashboard
+      router.replace(`/patient/${currentUser.id}/dashboard`);
+      
     } catch (err) {
       console.error("❌ Patient registration error:", err);
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -115,17 +115,17 @@ export default function RegisterPage() {
 
       // Get the registered user from auth store
       const currentUser = useAuthStore.getState().user;
+      console.log("✅ Current user after registration:", currentUser);
 
       if (!currentUser?.id) {
         throw new Error("User ID not found after registration");
       }
 
-      setSuccessInfo({ type: "doctor", data: userData });
-
-      // Auto-redirect to doctor dashboard with user ID after showing success
-      setTimeout(() => {
-        router.replace(`/doctor/${currentUser.id}/dashboard`);
-      }, 5000);
+      console.log(`🔄 Redirecting to doctor dashboard: /doctor/${currentUser.id}/dashboard`);
+      
+      // Immediate redirect to doctor dashboard
+      router.replace(`/doctor/${currentUser.id}/dashboard`);
+      
     } catch (err) {
       console.error("❌ Doctor registration error:", err);
       setError(err instanceof Error ? err.message : "Registration failed");
