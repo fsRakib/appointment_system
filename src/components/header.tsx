@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/components/auth-provider";
 import { useAppStore } from "@/lib/store";
-import { Menu, X, LogOut, User, Calendar } from "lucide-react";
+import { Menu, X, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 

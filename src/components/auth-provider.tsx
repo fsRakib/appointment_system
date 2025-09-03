@@ -54,7 +54,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initAuth();
-  }, [initializeAuth]);
+  }, [initializeAuth, isAuthenticated, isInitialized, user]);
 
   useEffect(() => {
     console.log(

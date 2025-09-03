@@ -70,7 +70,7 @@ export function AuthRedirect({
         window.history.replaceState(null, "", dashboardUrl);
       };
 
-      const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const handleBeforeUnload = () => {
         // Clear auth-related pages from history when navigating away
         if (typeof window !== "undefined") {
           const currentPath = window.location.pathname;

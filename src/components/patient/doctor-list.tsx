@@ -1,20 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Filter, Calendar, User, RefreshCw } from "lucide-react";
+import { Search, Calendar, User, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loading, EmptyState } from "@/components/ui/loading";
 import { useDoctors, useSpecializations } from "@/lib/queries";
 import { BookAppointmentModal } from "./book-appointment-modal";
+import { Doctor } from "@/types";
 import { eventBus, EVENTS } from "@/lib/events";
 
 export function DoctorList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialization, setSelectedSpecialization] = useState("");
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
 
   const {
@@ -37,7 +38,7 @@ export function DoctorList() {
 
   // Listen for doctor registration events
   useEffect(() => {
-    const handleDoctorRegistered = (newDoctor: any) => {
+    const handleDoctorRegistered = (newDoctor: unknown) => {
       console.log("New doctor registered event received:", newDoctor);
       // Force refetch of doctors immediately
       setTimeout(() => {
@@ -52,13 +53,7 @@ export function DoctorList() {
     };
   }, [refetch]);
 
-  // Manual refresh function
-  const handleManualRefresh = () => {
-    console.log("Manual refresh triggered");
-    refetch();
-  };
-
-  const handleBookAppointment = (doctor: any) => {
+  const handleBookAppointment = (doctor: Doctor) => {
     console.log("Booking appointment for doctor:", doctor);
     setSelectedDoctor(doctor);
     setShowBookingModal(true);
@@ -129,7 +124,7 @@ export function DoctorList() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {doctors.map((doctor: any) => (
+            {doctors.map((doctor: Doctor) => (
               <Card
                 key={doctor.id}
                 className="hover:shadow-lg transition-shadow"
@@ -199,11 +194,13 @@ export function DoctorList() {
       )}
 
       {/* Book Appointment Modal */}
-      <BookAppointmentModal
-        open={showBookingModal}
-        onClose={() => setShowBookingModal(false)}
-        doctor={selectedDoctor}
-      />
+      {selectedDoctor && (
+        <BookAppointmentModal
+          open={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          doctor={selectedDoctor}
+        />
+      )}
     </div>
   );
 }

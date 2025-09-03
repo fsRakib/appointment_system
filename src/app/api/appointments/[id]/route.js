@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Appointment from "@/lib/models/Appointment";
-import User from "@/lib/models/User";
 
 // GET /api/appointments/[id] - Get specific appointment
 export async function GET(request, { params }) {

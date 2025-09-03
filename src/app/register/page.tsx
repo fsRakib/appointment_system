@@ -67,6 +67,7 @@ export default function RegisterPage() {
 
     try {
       console.log("🔄 Submitting patient registration:", data);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { confirmPassword, ...userData } = {
         ...data,
         role: "PATIENT" as const,
@@ -103,6 +104,7 @@ export default function RegisterPage() {
 
     try {
       console.log("🔄 Submitting doctor registration:", data);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { confirmPassword, ...userData } = {
         ...data,
         role: "DOCTOR" as const,

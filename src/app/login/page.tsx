@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import { AuthRedirect } from "@/components/auth-redirect";
@@ -18,15 +18,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const { login } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect");
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch,
-  } = useForm<LoginFormData>({
+  const { register, handleSubmit, watch } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       role: "PATIENT",
@@ -56,10 +49,9 @@ export default function LoginPage() {
 
       // Use redirect URL if available, otherwise use default dashboard with user ID
       const redirectPath =
-        redirectUrl ||
-        (data.role === "DOCTOR"
+        data.role === "DOCTOR"
           ? `/doctor/${currentUser.id}/dashboard`
-          : `/patient/${currentUser.id}/dashboard`);
+          : `/patient/${currentUser.id}/dashboard`;
 
       console.log("✅ Login successful, redirecting to:", redirectPath);
 
@@ -72,11 +64,6 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-
-  const roleOptions = [
-    { value: "PATIENT", label: "Patient" },
-    { value: "DOCTOR", label: "Doctor" },
-  ];
 
   return (
     <AuthRedirect redirectAuthenticatedUsers={true}>

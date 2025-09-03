@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, User, Filter, Check, X, Loader2 } from "lucide-react";
+import { Calendar, User, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,7 @@ import {
   useUpdateAppointmentStatus,
 } from "@/lib/queries";
 import { formatDate, getStatusColor } from "@/lib/utils";
+import { Appointment } from "@/types";
 
 interface DoctorAppointmentsListProps {
   doctorId?: string;
@@ -39,7 +40,8 @@ export function DoctorAppointmentsList({
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [dateFilter, setDateFilter] = useState("");
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
   const [newStatus, setNewStatus] = useState("");
 
   const { data: appointmentsData, isLoading } = useDoctorAppointments({
@@ -59,7 +61,7 @@ export function DoctorAppointmentsList({
     { value: "CANCELLED", label: "Cancelled" },
   ];
 
-  const handleStatusChange = (appointment: any, status: string) => {
+  const handleStatusChange = (appointment: Appointment, status: string) => {
     setSelectedAppointment(appointment);
     setNewStatus(status);
     setShowStatusModal(true);
@@ -69,7 +71,9 @@ export function DoctorAppointmentsList({
     if (selectedAppointment && newStatus) {
       try {
         await updateStatusMutation.mutateAsync({
-          appointmentId: selectedAppointment._id,
+          appointmentId:
+            selectedAppointment.id ||
+            (selectedAppointment as unknown as { _id: string })._id,
           status: newStatus,
         });
         setShowStatusModal(false);
@@ -129,8 +133,13 @@ export function DoctorAppointmentsList({
       ) : (
         <>
           <div className="space-y-4">
-            {appointments.map((appointment: any) => (
-              <Card key={appointment._id || appointment.id}>
+            {appointments.map((appointment: Appointment) => (
+              <Card
+                key={
+                  appointment.id ||
+                  (appointment as unknown as { _id: string })._id
+                }
+              >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">

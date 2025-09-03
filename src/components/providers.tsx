@@ -27,7 +27,8 @@ export function Providers({ children }: ProvidersProps) {
     setGlobalQueryClient(queryClient);
     // Also make it available globally for debugging
     if (typeof window !== "undefined") {
-      (window as any).queryClient = queryClient;
+      (window as unknown as { queryClient: QueryClient }).queryClient =
+        queryClient;
     }
   }, [queryClient]);
 

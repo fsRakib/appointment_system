@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Loading, EmptyState } from "@/components/ui/loading";
 import {
   Pagination,
@@ -23,6 +23,7 @@ import {
 import { usePatientAppointments, useCancelAppointment } from "@/lib/queries";
 import { formatDate, getStatusColor } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
+import { Appointment } from "@/types";
 
 interface AppointmentsListProps {
   patientId?: string;
@@ -32,7 +33,8 @@ export function AppointmentsList({ patientId }: AppointmentsListProps = {}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
 
   const { data: appointmentsData, isLoading } = usePatientAppointments({
     page: currentPage,
@@ -50,7 +52,7 @@ export function AppointmentsList({ patientId }: AppointmentsListProps = {}) {
     { value: "CANCELLED", label: "Cancelled" },
   ];
 
-  const handleCancelClick = (appointment: any) => {
+  const handleCancelClick = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setShowCancelModal(true);
   };
@@ -108,7 +110,7 @@ export function AppointmentsList({ patientId }: AppointmentsListProps = {}) {
       ) : (
         <>
           <div className="space-y-4">
-            {appointments.map((appointment: any) => (
+            {appointments.map((appointment: Appointment) => (
               <Card key={appointment.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
