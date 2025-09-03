@@ -4,14 +4,36 @@ import User from "@/lib/models/User";
 import bcrypt from "bcryptjs";
 
 export async function POST(req) {
+  let body;
+
   try {
     console.log("🔄 Register API called");
+    console.log("Environment:", process.env.NODE_ENV);
+    console.log("MongoDB URI exists:", !!process.env.MONGODB_URI);
 
-    await dbConnect();
-    console.log("✅ Database connected");
+    // Parse request body first
+    try {
+      body = await req.json();
+      console.log("📦 Request body parsed:", { ...body, password: "***" });
+    } catch (parseError) {
+      console.error("❌ Failed to parse request body:", parseError);
+      return NextResponse.json(
+        { error: "Invalid request body", details: parseError.message },
+        { status: 400 }
+      );
+    }
 
-    const body = await req.json();
-    console.log("📦 Request body:", { ...body, password: "***" });
+    // Try database connection
+    try {
+      await dbConnect();
+      console.log("✅ Database connected");
+    } catch (dbError) {
+      console.error("❌ Database connection failed:", dbError);
+      return NextResponse.json(
+        { error: "Database connection failed", details: dbError.message },
+        { status: 500 }
+      );
+    }
 
     const { name, email, password, role, specialization, photo_url } = body;
 
@@ -24,7 +46,17 @@ export async function POST(req) {
     }
 
     console.log("🔍 Checking for existing user with email:", email);
-    const existing = await User.findOne({ email });
+    let existing;
+    try {
+      existing = await User.findOne({ email });
+    } catch (findError) {
+      console.error("❌ Error checking existing user:", findError);
+      return NextResponse.json(
+        { error: "Database query failed", details: findError.message },
+        { status: 500 }
+      );
+    }
+
     if (existing) {
       console.log("❌ Email already exists");
       return NextResponse.json(
@@ -34,7 +66,16 @@ export async function POST(req) {
     }
 
     console.log("🔐 Hashing password");
-    const hashedPassword = await bcrypt.hash(password, 10);
+    let hashedPassword;
+    try {
+      hashedPassword = await bcrypt.hash(password, 10);
+    } catch (hashError) {
+      console.error("❌ Password hashing failed:", hashError);
+      return NextResponse.json(
+        { error: "Password processing failed", details: hashError.message },
+        { status: 500 }
+      );
+    }
 
     console.log("👤 Creating new user");
     const user = new User({
@@ -47,44 +88,57 @@ export async function POST(req) {
     });
 
     console.log("💾 Saving user to database");
-    await user.save();
-    console.log("✅ User saved successfully with ID:", user._id);
+    let savedUser;
+    try {
+      savedUser = await user.save();
+      console.log("✅ User saved successfully with ID:", savedUser._id);
+    } catch (saveError) {
+      console.error("❌ User save failed:", saveError);
+
+      // Handle specific MongoDB errors
+      if (saveError.code === 11000) {
+        return NextResponse.json(
+          { error: "Email already registered" },
+          { status: 409 }
+        );
+      }
+
+      // Handle validation errors
+      if (saveError.name === "ValidationError") {
+        return NextResponse.json(
+          { error: `Validation error: ${saveError.message}` },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Failed to save user", details: saveError.message },
+        { status: 500 }
+      );
+    }
 
     const responseData = {
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      specialization: user.specialization,
-      photo_url: user.photo_url,
+      id: savedUser._id.toString(),
+      name: savedUser.name,
+      email: savedUser.email,
+      role: savedUser.role,
+      specialization: savedUser.specialization,
+      photo_url: savedUser.photo_url,
     };
 
     console.log("📤 Sending response:", responseData);
     return NextResponse.json(responseData, { status: 201 });
   } catch (error) {
-    console.error("❌ Registration error:", error);
+    console.error("❌ Unexpected registration error:", error);
+    console.error("Error stack:", error.stack);
 
-    // Handle specific MongoDB errors
-    if (error.code === 11000) {
-      console.log("❌ Duplicate key error");
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
-      );
-    }
-
-    // Handle validation errors
-    if (error.name === "ValidationError") {
-      console.log("❌ Validation error:", error.message);
-      return NextResponse.json(
-        { error: `Validation error: ${error.message}` },
-        { status: 400 }
-      );
-    }
-
-    // Generic error response
+    // Always return a valid JSON response
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        details: error.message,
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }
