@@ -192,12 +192,34 @@ export const useAuthStore = create<AuthState>()(
             }),
           });
 
+          console.log("📡 Register response status:", response.status);
+          console.log("📡 Register response headers:", response.headers);
+
+          // Check if response has content
+          const responseText = await response.text();
+          console.log("📡 Raw response text:", responseText);
+
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Registration failed");
+            let errorMessage = "Registration failed";
+            try {
+              const errorData = responseText ? JSON.parse(responseText) : {};
+              errorMessage = errorData.error || errorMessage;
+            } catch (jsonError) {
+              console.error("❌ Error parsing error response:", jsonError);
+              errorMessage = `Registration failed with status ${response.status}`;
+            }
+            throw new Error(errorMessage);
           }
 
-          const user = await response.json();
+          // Parse the successful response
+          let user;
+          try {
+            user = responseText ? JSON.parse(responseText) : {};
+          } catch (jsonError) {
+            console.error("❌ Error parsing success response:", jsonError);
+            throw new Error("Invalid response from server");
+          }
+
           console.log("✅ User registered successfully:", user);
 
           // Set the user in the auth state
